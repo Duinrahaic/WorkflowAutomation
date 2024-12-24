@@ -1,4 +1,4 @@
-name: Build, Package, and Release
+name: Build, Test, and Release Installer
 
 on:
   push:
@@ -6,87 +6,68 @@ on:
       - 'v*'  # Trigger workflow on version tags (e.g., v1.0.0)
 
 jobs:
-  build:
+  build_and_test:
+    name: Build and Test Application
     runs-on: windows-latest
 
     steps:
-      # Step 1: Checkout the code
-      - name: Checkout code
-        uses: actions/checkout@v3
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       # Step 2: Setup .NET
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: 8.0  # Ensure .NET 8 is used
+          dotnet-version: 8.0  # Specify the .NET version
 
       # Step 3: Restore dependencies
-      - name: Restore dependencies
+      - name: Restore Dependencies
         run: dotnet restore
 
       # Step 4: Build the application
-      - name: Build the application
-        run: dotnet publish -c Release -o output
+      - name: Build Application
+        run: dotnet build -c Release
 
-      # Step 5: Create a basic installer using Inno Setup
-      - name: Install Inno Setup
-        run: |
-          echo "Installing Inno Setup..."
-          choco install innosetup --yes
+      # Step 5: Run Tests
+      - name: Run Tests
+        run: dotnet test --no-build --verbosity normal
 
-      - name: Verify or Create Installer Directory
-        run: |
-          echo "Ensuring installer directory exists..."
-          if (!(Test-Path -Path "$env:GITHUB_WORKSPACE\installer")) {
-            echo "Installer directory not found. Creating it..."
-            New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE\installer"
-          }
-        shell: pwsh
+  package_installer:
+    name: Package Application into Installer
+    needs: build_and_test
+    runs-on: windows-latest
 
-      - name: Create Installer
-        run: |
-          echo "Running Inno Setup to create installer..."
-          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "$env:GITHUB_WORKSPACE\installer\setup.iss"
-        shell: cmd
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      # Step 6: Generate release notes with pull request summaries
-      - name: Generate Release Notes
-        id: generate_release_notes
-        uses: actions/github-script@v6
+      # Step 2: Compile .ISS to .EXE Installer using Inno Setup
+      - name: Compile Installer
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
-          script: |
-            const { data: pullRequests } = await github.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'closed',
-              per_page: 10
-            });
+          path: src/setup.iss  # Adjust to the location of your .iss file
+          options: /O+
 
-            const prSummaries = pullRequests.map(pr => `- ${pr.title} (#${pr.number}) by ${pr.user.login}`).join('\n');
-
-            const releaseNotes = `### Pull Requests:\n\n${prSummaries}`;
-
-            console.log(`Generated release notes: \n${releaseNotes}`);
-            core.setOutput('notes', releaseNotes);
-
-      # Step 7: Create GitHub Release
+      # Step 3: Create a GitHub Release
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
         with:
           tag_name: ${{ github.ref_name }}
           release_name: Release ${{ github.ref_name }}
-          body: ${{ steps.generate_release_notes.outputs.notes }}
+          body: "Automated release of the installer."
           draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 8: Upload release assets
-      - name: Upload Release Assets
+      # Step 4: Upload Installer to Release
+      - name: Upload Installer
         uses: actions/upload-release-asset@v1
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           release_id: ${{ steps.create_release.outputs.id }}
-          asset_path: ./output/*.exe  # Path to the installer executable
+          asset_path: src/*.exe  # Adjust to match the generated installer location
           asset_name: ${{ github.ref_name }}_Installer.exe
           content_type: application/vnd.microsoft.portable-executable
