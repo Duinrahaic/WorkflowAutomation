@@ -12,10 +12,10 @@ SolidCompression=yes
 
 [Files]
 Source: "{#RepositoryName}\bin\Release\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
-Source: "dotnet-runtime-installer.exe"; DestDir: "{tmp}"; Flags: ignoreversion
 
 [Run]
-Filename: "{tmp}\dotnet-runtime-installer.exe"; Parameters: "/quiet"; StatusMsg: "Installing .NET Core Runtime 8..."; Flags: waituntilterminated runhidden
+Filename: "powershell.exe"; Parameters: "-Command \"if (!(Get-Command 'dotnet' -ErrorAction SilentlyContinue)) { Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i https://dotnet.microsoft.com/download/dotnet/thank-you/runtime-desktop-8.0.0-windows-x64-installer /quiet' -Wait }\""; StatusMsg: "Installing .NET Core Runtime 8..."; Flags: runhidden waituntilterminated
+Filename: "{app}\{#RepositoryName}.exe"; Description: "Launch {#RepositoryName}"; Flags: nowait postinstall skipifsilent
 
 [Icons]
 Name: "{group}\{#RepositoryName}"; Filename: "{app}\{#RepositoryName}.exe"
@@ -33,6 +33,6 @@ procedure InitializeWizard;
 begin
   if not IsDotNetInstalled then
   begin
-    ExtractTemporaryFile('dotnet-runtime-installer.exe');
+    MsgBox('The required .NET Core Runtime 8 is not installed. It will now be downloaded and installed.', mbInformation, MB_OK);
   end;
 end;
