@@ -41,7 +41,7 @@ jobs:
       - name: Create Installer
         run: |
           "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "$GITHUB_WORKSPACE\installer\setup.iss"
-        shell: cmd
+        shell: cmd 
 
       # Step 6: Create a GitHub release
       - name: Generate Release Notes
