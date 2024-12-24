@@ -10,15 +10,15 @@ namespace WorkflowAutomation;
 
 public static class Updater
 {
-    private const string Username = "Duinrahaic";
-    private const string ApplicationName = "FitOSC";
+    private static readonly string Username = "Duinrahaic";
+    private static readonly string ApplicationName = $"{Assembly.GetExecutingAssembly().GetName().Name}";
 
     private static async Task<string?> Query()
     {
         try
         {
             using var client = new HttpClient();
-            client.DefaultRequestHeaders.Add("User-Agent", $"{Assembly.GetExecutingAssembly().GetName().Name}-AutoUpdater");
+            client.DefaultRequestHeaders.Add("User-Agent", $"{ApplicationName}-AutoUpdater");
             var response = await client.GetStringAsync($@"https://api.github.com/repos/{Username}/{ApplicationName}/releases/latest");
             return response;
         }
@@ -57,7 +57,7 @@ public static class Updater
             if (string.IsNullOrEmpty(dl))
                 return;
 
-            string outputFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "UpdateInstaller.exe");
+            string outputFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{ApplicationName}-Installer.exe");
 
             Console.WriteLine($"Downloading update from {dl}...");
             using var client = new HttpClient();
