@@ -31,34 +31,47 @@ jobs:
       # Step 5: Create a basic installer using Inno Setup
       - name: Install Inno Setup
         run: |
+          echo "Installing Inno Setup..."
           choco install innosetup --yes
 
-      - name: Verify Installer Directory
+      - name: Verify or Create Installer Directory
         run: |
-          if (!(Test-Path -Path "$GITHUB_WORKSPACE\installer")) { throw "Installer directory not found: $GITHUB_WORKSPACE\installer" }
+          echo "Ensuring installer directory exists..."
+          if (!(Test-Path -Path "$env:GITHUB_WORKSPACE\installer")) {
+            echo "Installer directory not found. Creating it..."
+            New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE\installer"
+          }
         shell: pwsh
 
       - name: Create Installer
         run: |
-          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "$GITHUB_WORKSPACE\installer\setup.iss"
-        shell: cmd 
+          echo "Running Inno Setup to create installer..."
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "$env:GITHUB_WORKSPACE\installer\setup.iss"
+        shell: cmd
 
-      # Step 6: Create a GitHub release
+      # Step 6: Generate release notes with pull request summaries
       - name: Generate Release Notes
         id: generate_release_notes
         uses: actions/github-script@v6
         with:
           script: |
-            const { data: commits } = await github.repos.listCommits({
+            const { data: pullRequests } = await github.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              per_page: 10,
-              sha: context.ref,
+              state: 'closed',
+              per_page: 10
             });
-            const notes = commits.map(c => `- ${c.commit.message} (${c.sha.substring(0, 7)})`).join('\n');
-            core.setOutput('notes', `### Changelog:\n\n${notes}`);
 
+            const prSummaries = pullRequests.map(pr => `- ${pr.title} (#${pr.number}) by ${pr.user.login}`).join('\n');
+
+            const releaseNotes = `### Pull Requests:\n\n${prSummaries}`;
+
+            console.log(`Generated release notes: \n${releaseNotes}`);
+            core.setOutput('notes', releaseNotes);
+
+      # Step 7: Create GitHub Release
       - name: Create GitHub Release
+        id: create_release
         uses: actions/create-release@v1
         with:
           tag_name: ${{ github.ref_name }}
@@ -68,12 +81,13 @@ jobs:
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 7: Upload release assets
+      # Step 8: Upload release assets
       - name: Upload Release Assets
+        run: echo "Uploading release assets..."
         uses: actions/upload-release-asset@v1
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          release_id: ${{ steps.create-release.outputs.id }}
-          asset_path: ./installer/output/*.exe  # Path to the installer executable
+          release_id: ${{ steps.create_release.outputs.id }}
+          asset_path: ./output/*.exe  # Path to the installer executable
           asset_name: ${{ github.ref_name }}_Installer.exe
           content_type: application/vnd.microsoft.portable-executable
