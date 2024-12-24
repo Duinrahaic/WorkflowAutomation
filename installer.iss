@@ -14,7 +14,7 @@ SolidCompression=yes
 Source: "{#RepositoryName}\bin\Release\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
 
 [Run]
-Filename: "powershell.exe"; Parameters: "-Command \"if (!(Get-Command 'dotnet' -ErrorAction SilentlyContinue)) { Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i https://dotnet.microsoft.com/download/dotnet/thank-you/runtime-desktop-8.0.0-windows-x64-installer /quiet' -Wait }\""; StatusMsg: "Installing .NET Core Runtime 8..."; Flags: runhidden waituntilterminated
+Filename: "powershell.exe"; Parameters: "-Command \"if (!(Get-Command 'dotnet' -ErrorAction SilentlyContinue)) { Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i https://dotnet.microsoft.com/download/dotnet/thank-you/runtime-desktop-8.0.0-windows-x64-installer /quiet' -Wait } \""; StatusMsg: "Installing .NET Core Runtime 8..."; Flags: runhidden waituntilterminated
 Filename: "{app}\{#RepositoryName}.exe"; Description: "Launch {#RepositoryName}"; Flags: nowait postinstall skipifsilent
 
 [Icons]
