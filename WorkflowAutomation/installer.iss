@@ -1,23 +1,25 @@
 [Setup]
-AppName=WorkflowAutomation
+#define RepositoryName "WorkflowAutomation"
+
+AppName={#RepositoryName}
 AppVersion=1.0.0
-DefaultDirName={pf}\WorkflowAutomation
-DefaultGroupName=WorkflowAutomation
+DefaultDirName={pf}\{#RepositoryName}
+DefaultGroupName={#RepositoryName}
 OutputDir=output
 OutputBaseFilename={#RepositoryName}-Installer
 Compression=lzma
 SolidCompression=yes
 
 [Files]
-Source: "WorkflowAutomation\bin\Release\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+Source: "{#RepositoryName}\bin\Release\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
 Source: "dotnet-runtime-installer.exe"; DestDir: "{tmp}"; Flags: ignoreversion
 
 [Run]
 Filename: "{tmp}\dotnet-runtime-installer.exe"; Parameters: "/quiet"; StatusMsg: "Installing .NET Core Runtime 8..."; Flags: waituntilterminated runhidden
 
 [Icons]
-Name: "{group}\WorkflowAutomation"; Filename: "{app}\WorkflowAutomation.exe"
-Name: "{group}\Uninstall WorkflowAutomation"; Filename: "{uninstallexe}"
+Name: "{group}\{#RepositoryName}"; Filename: "{app}\{#RepositoryName}.exe"
+Name: "{group}\Uninstall {#RepositoryName}"; Filename: "{uninstallexe}"
 
 [Code]
 function IsDotNetInstalled: Boolean;
