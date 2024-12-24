@@ -37,18 +37,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Replace Repository Name in .iss File
-        run: |
-          echo "Updating {#RepositoryName} in installer.iss"
-          $fileContent = Get-Content installer.iss
-          $updatedContent = $fileContent -replace "{#RepositoryName}", "${{ github.event.repository.name }}"
-          Set-Content installer.iss $updatedContent
-        shell: pwsh
-
       - name: Compile Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
-          path: installer.iss
+          path: installer.iss  # Correct path to the .iss file
           options: /O+
 
       - name: Create GitHub Release
@@ -67,6 +59,6 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           release_id: ${{ steps.create_release.outputs.id }}
-          asset_path: output/${{ github.event.repository.name }}-Installer.exe
+          asset_path: output/WorkflowAutomation-Installer.exe  # Path to the generated installer
           asset_name: ${{ github.ref_name }}_Installer.exe
           content_type: application/vnd.microsoft.portable-executable
