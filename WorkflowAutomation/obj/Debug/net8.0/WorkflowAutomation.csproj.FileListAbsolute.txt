@@ -1,0 +1,14 @@
+C:\Users\gman2\RiderProjects\WorkflowAutomation\WorkflowAutomation\bin\Debug\net8.0\WorkflowAutomation.exe
+C:\Users\gman2\RiderProjects\WorkflowAutomation\WorkflowAutomation\bin\Debug\net8.0\WorkflowAutomation.deps.json
+C:\Users\gman2\RiderProjects\WorkflowAutomation\WorkflowAutomation\bin\Debug\net8.0\WorkflowAutomation.runtimeconfig.json
+C:\Users\gman2\RiderProjects\WorkflowAutomation\WorkflowAutomation\bin\Debug\net8.0\WorkflowAutomation.dll
+C:\Users\gman2\RiderProjects\WorkflowAutomation\WorkflowAutomation\bin\Debug\net8.0\WorkflowAutomation.pdb
+C:\Users\gman2\RiderProjects\WorkflowAutomation\WorkflowAutomation\obj\Debug\net8.0\WorkflowAutomation.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\gman2\RiderProjects\WorkflowAutomation\WorkflowAutomation\obj\Debug\net8.0\WorkflowAutomation.AssemblyInfoInputs.cache
+C:\Users\gman2\RiderProjects\WorkflowAutomation\WorkflowAutomation\obj\Debug\net8.0\WorkflowAutomation.AssemblyInfo.cs
+C:\Users\gman2\RiderProjects\WorkflowAutomation\WorkflowAutomation\obj\Debug\net8.0\WorkflowAutomation.csproj.CoreCompileInputs.cache
+C:\Users\gman2\RiderProjects\WorkflowAutomation\WorkflowAutomation\obj\Debug\net8.0\WorkflowAutomation.dll
+C:\Users\gman2\RiderProjects\WorkflowAutomation\WorkflowAutomation\obj\Debug\net8.0\refint\WorkflowAutomation.dll
+C:\Users\gman2\RiderProjects\WorkflowAutomation\WorkflowAutomation\obj\Debug\net8.0\WorkflowAutomation.pdb
+C:\Users\gman2\RiderProjects\WorkflowAutomation\WorkflowAutomation\obj\Debug\net8.0\WorkflowAutomation.genruntimeconfig.cache
+C:\Users\gman2\RiderProjects\WorkflowAutomation\WorkflowAutomation\obj\Debug\net8.0\ref\WorkflowAutomation.dll
