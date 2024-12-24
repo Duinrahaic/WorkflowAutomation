@@ -27,16 +27,7 @@ jobs:
 
       - name: Run Tests
         run: dotnet test --no-build --verbosity normal
-
-  package_installer:
-    name: Package and Publish Installer
-    needs: build_and_test
-    runs-on: windows-latest
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
+        
       - name: Compile Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
