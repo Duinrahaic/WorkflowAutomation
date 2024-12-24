@@ -1,0 +1,74 @@
+name: Build, Package, and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger workflow on version tags (e.g., v1.0.0)
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Setup .NET
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 8.0  # Ensure .NET 8 is used
+
+      # Step 3: Restore dependencies
+      - name: Restore dependencies
+        run: dotnet restore
+
+      # Step 4: Build the application
+      - name: Build the application
+        run: dotnet publish -c Release -o output
+
+      # Step 5: Create a basic installer using Inno Setup
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup --yes
+
+      - name: Create Installer
+        run: |
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" setup.iss
+        working-directory: ./installer
+
+      # Step 6: Create a GitHub release
+      - name: Generate Release Notes
+        id: generate_release_notes
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: commits } = await github.repos.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 10,
+              sha: context.ref,
+            });
+            const notes = commits.map(c => `- ${c.commit.message} (${c.sha.substring(0, 7)})`).join('\n');
+            core.setOutput('notes', `### Changelog:\n\n${notes}`);
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body: ${{ steps.generate_release_notes.outputs.notes }}
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 7: Upload release assets
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          release_id: ${{ steps.create-release.outputs.id }}
+          asset_path: ./installer/output/*.exe  # Path to the installer executable
+          asset_name: ${{ github.ref_name }}_Installer.exe
+          content_type: application/vnd.microsoft.portable-executable
