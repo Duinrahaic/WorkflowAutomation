@@ -40,7 +40,7 @@ jobs:
 
       # Step 6: Get Pull Requests Since Last Tag
       - name: Get Pull Requests Since Last Tag
-        id: prs
+        id: bash
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^)
           echo "Previous Tag: $PREV_TAG"
