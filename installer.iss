@@ -12,7 +12,6 @@ SolidCompression=yes
 
 [Files]
 Source: "{#RepositoryName}\bin\Release\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
-Source: "dotnet-runtime-downloader.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Code]
 function IsDotNet8Installed: Boolean;
@@ -50,7 +49,6 @@ end;
 function InitializeSetup: Boolean;
 var
   dotNet8Installed: Boolean;
-  dotNetDownloaderPath: string;
   latestDotNetRuntimeUrl: string;
   downloadResultCode: Integer;
 begin
@@ -62,7 +60,6 @@ begin
   begin
     MsgBox('The .NET 8 runtime is required. Downloading and installing it now.', mbInformation, MB_OK);
 
-    dotNetDownloaderPath := ExpandConstant('{tmp}\dotnet-runtime-downloader.exe');
     latestDotNetRuntimeUrl := GetLatestDotNet8RuntimeUrl;
 
     if latestDotNetRuntimeUrl = '' then
@@ -71,8 +68,8 @@ begin
       Exit;
     end;
 
-    // Run the downloader to fetch the latest .NET 8 runtime installer
-    Exec(dotNetDownloaderPath, latestDotNetRuntimeUrl, '', SW_HIDE, ewWaitUntilTerminated, downloadResultCode);
+    // Run PowerShell to fetch and install the latest .NET 8 runtime installer
+    Exec('powershell.exe', '-Command "Invoke-WebRequest -Uri ' + latestDotNetRuntimeUrl + ' -OutFile {tmp}\dotnet-installer.exe; Start-Process msiexec.exe -ArgumentList \'/i {tmp}\dotnet-installer.exe /quiet\' -Wait"', '', SW_HIDE, ewWaitUntilTerminated, downloadResultCode);
 
     dotNet8Installed := IsDotNet8Installed;
 
