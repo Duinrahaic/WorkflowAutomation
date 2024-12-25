@@ -11,6 +11,7 @@ OutputDir={#OutputPath}
 OutputBaseFilename={#MyAppName}_Installer
 Compression=lzma
 SolidCompression=yes
+SignTool=SignTool.exe sign /fd SHA256 /a /f "{#OutputPath}\self-signed-cert.pfx" /p "password" $f
 
 [Files]
 Source: "{#OutputPath}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
