@@ -69,7 +69,7 @@ begin
     end;
 
     // Run PowerShell to fetch and install the latest .NET 8 runtime installer
-    Exec('powershell.exe', '-Command "Invoke-WebRequest -Uri ' + latestDotNetRuntimeUrl + ' -OutFile {tmp}\dotnet-installer.exe; Start-Process msiexec.exe -ArgumentList \'/i {tmp}\dotnet-installer.exe /quiet\' -Wait"', '', SW_HIDE, ewWaitUntilTerminated, downloadResultCode);
+    Exec('powershell.exe', '/C Invoke-WebRequest -Uri ' + latestDotNetRuntimeUrl + ' -OutFile "{tmp}\dotnet-installer.exe"; Start-Process msiexec.exe -ArgumentList "/i {tmp}\dotnet-installer.exe /quiet" -Wait', '', SW_HIDE, ewWaitUntilTerminated, downloadResultCode);
 
     dotNet8Installed := IsDotNet8Installed;
 
@@ -83,7 +83,7 @@ end;
 
 function DownloadTemporaryFile(const Url, DestFile: String; var ErrorCode: Integer): Boolean;
 begin
-  Exec('powershell.exe', '-Command "Invoke-WebRequest -Uri ' + Url + ' -OutFile ' + DestFile + '"', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  Exec('powershell.exe', '/C Invoke-WebRequest -Uri ' + Url + ' -OutFile ' + DestFile, '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
   Result := FileExists(DestFile);
 end;
 
@@ -93,7 +93,7 @@ var
   TempCode: Integer;
 begin
   Result := '';
-  Exec('powershell.exe', '-Command "Get-Content ' + FilePath + ' | ConvertFrom-Json | Select-Object -ExpandProperty ' + ArrayKey + ' | Where-Object {$_.channel-version -like \"' + MatchValue + '*\"} | Select-Object -ExpandProperty ' + FieldKey + '"', '', SW_HIDE, ewWaitUntilTerminated, TempCode);
+  Exec('powershell.exe', '/C Get-Content ' + FilePath + ' | ConvertFrom-Json | Select-Object -ExpandProperty ' + ArrayKey + ' | Where-Object {$_.channel-version -like "' + MatchValue + '*"} | Select-Object -ExpandProperty ' + FieldKey, '', SW_HIDE, ewWaitUntilTerminated, TempCode);
   if TempCode = 0 then
     Result := JsonOutput;
 end;
