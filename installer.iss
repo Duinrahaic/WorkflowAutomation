@@ -1,112 +1,83 @@
-[Setup]
-#define RepositoryName "WorkflowAutomation"
+name: Build, Test, and Release Installer
 
-AppName={#RepositoryName}
-AppVersion=1.0.0
-DefaultDirName={pf}\{#RepositoryName}
-DefaultGroupName={#RepositoryName}
-OutputDir=output
-OutputBaseFilename={#RepositoryName}-Installer
-Compression=lzma
-SolidCompression=yes
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on version tags
 
-[Files]
-Source: "{#RepositoryName}\bin\Release\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+jobs:
+  build-release:
+    runs-on: windows-latest
 
-[Code]
-function IsDotNet8Installed: Boolean;
-var
-  VersionOutput: string;
-  ExecResult: Boolean;
-begin
-  ExecResult := Exec('cmd.exe', '/C dotnet --list-runtimes', '', SW_HIDE, ewWaitUntilTerminated, VersionOutput);
-  if not ExecResult then
-  begin
-    Result := False;
-    Exit;
-  end;
-  Result := Pos('Microsoft.NETCore.App 8.', VersionOutput) > 0;
-end;
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-function GetLatestDotNet8RuntimeUrl: String;
-var
-  Url: String;
-  TempFile: String;
-  DownloadCode: Integer;
-begin
-  TempFile := ExpandConstant('{tmp}\runtime-latest.json');
-  Url := 'https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/releases-index.json';
+      # Step 2: Setup .NET
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 8.0
 
-  // Download the release metadata
-  if not DownloadTemporaryFile(Url, TempFile, DownloadCode) then
-  begin
-    MsgBox('Failed to download .NET release metadata. Setup will now exit.', mbError, MB_OK);
-    Result := '';
-    Exit;
-  end;
+      # Step 3: Restore dependencies
+      - name: Restore Dependencies
+        run: dotnet restore
 
-  // Parse the latest release URL for .NET 8
-  Result := ExtractJsonField(TempFile, 'releases', 'latest-release-url', '8.0');
-  if Result = '' then
-  begin
-    MsgBox('Failed to find the latest .NET 8 runtime URL. Setup will now exit.', mbError, MB_OK);
-  end;
-end;
+      # Step 4: Build and Test the application
+      - name: Publish Application with Runtime
+        run: dotnet publish -c Release -o output --self-contained --runtime win-x64
 
-function InitializeSetup: Boolean;
-var
-  dotNet8Installed: Boolean;
-  latestDotNetRuntimeUrl: string;
-  downloadResultCode: Integer;
-  powershellCommand: string;
-begin
-  Result := True;
+      - name: Run Tests
+        run: dotnet test --no-build --verbosity normal
 
-  dotNet8Installed := IsDotNet8Installed;
+      # Step 5: Generate a Self-Signed Certificate
+      - name: Generate Self-Signed Certificate
+        run: |
+          $cert = New-SelfSignedCertificate -Type CodeSigning -Subject "CN=SelfSigned" -CertStoreLocation "Cert:\LocalMachine\My"
+          $thumbprint = $cert.Thumbprint
+          Export-PfxCertificate -Cert "Cert:\LocalMachine\My\$thumbprint" -FilePath self-signed-cert.pfx -Password (ConvertTo-SecureString -String "password" -Force -AsPlainText)
+        shell: pwsh
 
-  if not dotNet8Installed then
-  begin
-    MsgBox('The .NET 8 runtime is required. Downloading and installing it now.', mbInformation, MB_OK);
+      # Step 6: Create Inno Setup Installer
+      - name: Create Inno Setup Installer
+        run: |
+          iscc /DMyAppName=${{ github.event.repository.name }} /DMyOutputPath=output /DMyInstallerPath=installer.iss
 
-    latestDotNetRuntimeUrl := GetLatestDotNet8RuntimeUrl;
+      # Step 7: Sign the Installer
+      - name: Sign Installer
+        run: |
+          SignTool sign /fd SHA256 /f self-signed-cert.pfx /p password output/${{ github.event.repository.name }}_Installer.exe
 
-    if latestDotNetRuntimeUrl = '' then
-    begin
-      Result := False;
-      Exit;
-    end;
+      # Step 8: Get Pull Requests Since Last Tag
+      - name: Get Pull Requests Since Last Tag
+        id: prs
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^)
+          echo "Previous Tag: $PREV_TAG"
+          PRS=$(gh pr list --base $PREV_TAG --json title,number --jq '.[] | "- PR #\(.number): \(.title)"')
+          echo "prs=$PRS" >> $GITHUB_ENV
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    // Construct the PowerShell command
-    powershellCommand := '/C Invoke-WebRequest -Uri "' + latestDotNetRuntimeUrl + '" -OutFile "{tmp}\dotnet-installer.exe"; ' +
-                         'Start-Process msiexec.exe -ArgumentList "/i {tmp}\dotnet-installer.exe /quiet" -Wait';
+      # Step 9: Create Release with Installer Asset
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body: |
+            ## Pull Requests
+            ${{ env.prs }}
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-    // Run PowerShell to fetch and install the latest .NET 8 runtime installer
-    Exec('powershell.exe', powershellCommand, '', SW_HIDE, ewWaitUntilTerminated, downloadResultCode);
-
-    dotNet8Installed := IsDotNet8Installed;
-
-    if not dotNet8Installed then
-    begin
-      MsgBox('Failed to download and install the .NET 8 runtime. Setup will now exit.', mbError, MB_OK);
-      Result := False;
-    end;
-  end;
-end;
-
-function DownloadTemporaryFile(const Url, DestFile: String; var ErrorCode: Integer): Boolean;
-begin
-  Exec('powershell.exe', '/C Invoke-WebRequest -Uri "' + Url + '" -OutFile "' + DestFile + '"', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
-  Result := FileExists(DestFile);
-end;
-
-function ExtractJsonField(const FilePath, ArrayKey, FieldKey, MatchValue: String): String;
-var
-  JsonOutput: String;
-  TempCode: Integer;
-begin
-  Result := '';
-  Exec('powershell.exe', '/C Get-Content "' + FilePath + '" | ConvertFrom-Json | Select-Object -ExpandProperty ' + ArrayKey +
-                         ' | Where-Object {$_.channel-version -like "' + MatchValue + '*"} | Select-Object -ExpandProperty ' + FieldKey, '', SW_HIDE, ewWaitUntilTerminated, TempCode);
-  if TempCode = 0 then
-    Result := JsonOutput;
-end;
+      - name: Upload Installer to Release
+        uses: actions/upload-release-asset@v1
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          release_id: ${{ steps.create-release.outputs.id }}
+          asset_path: output/${{ github.event.repository.name }}_Installer.exe
+          asset_name: ${{ github.event.repository.name }}_Installer.exe
+          content_type: application/vnd.microsoft.portable-executable
