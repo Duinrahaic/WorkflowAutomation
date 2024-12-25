@@ -36,7 +36,7 @@ jobs:
       - name: Create Inno Setup Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
-          path: setup.iss
+          path: installer.iss
           options: /Q
 
       # Step 6: Generate Changelog
