@@ -17,8 +17,15 @@ Source: "{#RepositoryName}\bin\Release\*"; DestDir: "{app}"; Flags: recursesubdi
 function IsDotNet8Installed: Boolean;
 var
   VersionOutput: string;
+  ExecResult: Boolean;
 begin
-  Result := Exec('cmd.exe', '/C dotnet --list-runtimes', '', SW_HIDE, ewWaitUntilTerminated, VersionOutput) and (Pos('Microsoft.NETCore.App 8.', VersionOutput) > 0);
+  ExecResult := Exec('cmd.exe', '/C dotnet --list-runtimes', '', SW_HIDE, ewWaitUntilTerminated, VersionOutput);
+  if not ExecResult then
+  begin
+    Result := False;
+    Exit;
+  end;
+  Result := Pos('Microsoft.NETCore.App 8.', VersionOutput) > 0;
 end;
 
 function GetLatestDotNet8RuntimeUrl: String;
