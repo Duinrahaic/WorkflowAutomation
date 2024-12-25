@@ -12,27 +12,91 @@ SolidCompression=yes
 
 [Files]
 Source: "{#RepositoryName}\bin\Release\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
-
-[Run]
-Filename: "powershell.exe"; Parameters: "-Command if (!(Get-Command 'dotnet' -ErrorAction SilentlyContinue)) { Start-Process msiexec.exe -ArgumentList '/i https://dotnet.microsoft.com/download/dotnet/thank-you/runtime-desktop-8.0.0-windows-x64-installer /quiet' -Wait }"; StatusMsg: "Installing .NET Core Runtime 8..."; Flags: runhidden waituntilterminated
-Filename: "{app}\{#RepositoryName}.exe"; Description: "Launch {#RepositoryName}"; Flags: nowait postinstall skipifsilent
-
-[Icons]
-Name: "{group}\{#RepositoryName}"; Filename: "{app}\{#RepositoryName}.exe"
-Name: "{group}\Uninstall {#RepositoryName}"; Filename: "{uninstallexe}"
+Source: "dotnet-runtime-downloader.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Code]
-function IsDotNetInstalled: Boolean;
+function IsDotNet8Installed: Boolean;
 var
   VersionOutput: string;
 begin
   Result := Exec('cmd.exe', '/C dotnet --list-runtimes', '', SW_HIDE, ewWaitUntilTerminated, VersionOutput) and (Pos('Microsoft.NETCore.App 8.', VersionOutput) > 0);
 end;
 
-procedure InitializeWizard;
+function GetLatestDotNet8RuntimeUrl: String;
+var
+  Url: String;
+  TempFile: String;
+  DownloadCode: Integer;
 begin
-  if not IsDotNetInstalled then
+  TempFile := ExpandConstant('{tmp}\runtime-latest.json');
+  Url := 'https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/releases-index.json';
+
+  // Download the release metadata
+  if not DownloadTemporaryFile(Url, TempFile, DownloadCode) then
   begin
-    MsgBox('The required .NET Core Runtime 8 is not installed. It will now be downloaded and installed.', mbInformation, MB_OK);
+    MsgBox('Failed to download .NET release metadata. Setup will now exit.', mbError, MB_OK);
+    Result := '';
+    Exit;
   end;
+
+  // Parse the latest release URL for .NET 8
+  Result := ExtractJsonField(TempFile, 'releases', 'latest-release-url', '8.0');
+  if Result = '' then
+  begin
+    MsgBox('Failed to find the latest .NET 8 runtime URL. Setup will now exit.', mbError, MB_OK);
+  end;
+end;
+
+function InitializeSetup: Boolean;
+var
+  dotNet8Installed: Boolean;
+  dotNetDownloaderPath: string;
+  latestDotNetRuntimeUrl: string;
+  downloadResultCode: Integer;
+begin
+  Result := True;
+
+  dotNet8Installed := IsDotNet8Installed;
+
+  if not dotNet8Installed then
+  begin
+    MsgBox('The .NET 8 runtime is required. Downloading and installing it now.', mbInformation, MB_OK);
+
+    dotNetDownloaderPath := ExpandConstant('{tmp}\dotnet-runtime-downloader.exe');
+    latestDotNetRuntimeUrl := GetLatestDotNet8RuntimeUrl;
+
+    if latestDotNetRuntimeUrl = '' then
+    begin
+      Result := False;
+      Exit;
+    end;
+
+    // Run the downloader to fetch the latest .NET 8 runtime installer
+    Exec(dotNetDownloaderPath, latestDotNetRuntimeUrl, '', SW_HIDE, ewWaitUntilTerminated, downloadResultCode);
+
+    dotNet8Installed := IsDotNet8Installed;
+
+    if not dotNet8Installed then
+    begin
+      MsgBox('Failed to download and install the .NET 8 runtime. Setup will now exit.', mbError, MB_OK);
+      Result := False;
+    end;
+  end;
+end;
+
+function DownloadTemporaryFile(const Url, DestFile: String; var ErrorCode: Integer): Boolean;
+begin
+  Exec('powershell.exe', '-Command "Invoke-WebRequest -Uri ' + Url + ' -OutFile ' + DestFile + '"', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  Result := FileExists(DestFile);
+end;
+
+function ExtractJsonField(const FilePath, ArrayKey, FieldKey, MatchValue: String): String;
+var
+  JsonOutput: String;
+  TempCode: Integer;
+begin
+  Result := '';
+  Exec('powershell.exe', '-Command "Get-Content ' + FilePath + ' | ConvertFrom-Json | Select-Object -ExpandProperty ' + ArrayKey + ' | Where-Object {$_.channel-version -like \"' + MatchValue + '*\"} | Select-Object -ExpandProperty ' + FieldKey + '"', '', SW_HIDE, ewWaitUntilTerminated, TempCode);
+  if TempCode = 0 then
+    Result := JsonOutput;
 end;
