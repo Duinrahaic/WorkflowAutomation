@@ -36,32 +36,47 @@ jobs:
       - name: Create Inno Setup Installer
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
-          path: installer.iss
+          path: setup.iss
+          options: /Q
 
-      # Step 6: Get Pull Requests Since Last Tag
-      - name: Get Pull Requests Since Last Tag
-        id: bash
+      # Step 6: Generate Changelog
+      - name: Generate Changelog
+        id: changelog
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^)
           echo "Previous Tag: $PREV_TAG"
-          PRS=$(gh pr list --base $PREV_TAG --json title,number --jq '.[] | "- PR #\(.number): \(.title)"')
-          echo "prs=$PRS" >> $GITHUB_ENV
+          gh pr list --search "is:merged base:$PREV_TAG" --json title,number,labels --jq '
+            [.[] | 
+              {
+                title: .title,
+                number: .number,
+                category: (
+                  if any(.labels[]; .name == "breaking change") then "Breaking Changes" 
+                  elif any(.labels[]; .name == "enhancement") then "New Features" 
+                  elif any(.labels[]; .name == "bug") then "Bug Fixes" 
+                  else "Other Changes" 
+                  end
+                )
+              }
+            ]' > changelog.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
 
-      # Step 7: Create Release with Installer Asset
+      # Step 7: Format Changelog and Create Release
       - name: Create GitHub Release
         uses: actions/create-release@v1
         with:
           tag_name: ${{ github.ref_name }}
           release_name: Release ${{ github.ref_name }}
           body: |
-            ## Pull Requests
-            ${{ env.prs }}
+            ## Changelog
+            ${{ steps.changelog.outputs.body }}
           draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Step 8: Upload Installer to Release
       - name: Upload Installer to Release
         uses: actions/upload-release-asset@v1
         with:
